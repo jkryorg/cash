@@ -75,11 +75,9 @@ if [ "${1}" != "init" ]; then
 fi
 
 if [ -n "${MYCN}" ]; then
-    MYALT="DNS:${MYCN}${MYALT:+",${MYALT}"}"
     MYCRT="${OPENSSL_DIR}/certs/${MYCN}.crt"
     MYKEY="${OPENSSL_DIR}/private/${MYCN}.key"
     MYCSR="${OPENSSL_DIR}/requests/${MYCN}.csr"
-    export MYALT
 fi
 
 export OPENSSL_CONF OPENSSL_DIR
@@ -106,7 +104,7 @@ ca_init() {
 default_ca = CA_default
 
 [CA_default]
-dir              = \$ENV::OPENSSL_DIR
+dir              = ${OPENSSL_DIR}
 database         = \$dir/CA/index
 serial           = \$dir/CA/serial
 crlnumber        = \$dir/CA/crlnumber
@@ -137,10 +135,9 @@ commonName             = supplied
 emailAddress           = optional
 
 [req]
-distinguished_name = req_distinguished_name
-req_extensions     = req_ext
-x509_extensions    = ca_ext
-default_md         = sha256
+default_md             = sha256
+x509_extensions        = ca_ext
+distinguished_name     = req_distinguished_name
 
 [req_distinguished_name]
 countryName            = Country Name (2 letter code)
@@ -166,9 +163,6 @@ extendedKeyUsage       = serverAuth, clientAuth
 
 [crl_ext]
 authorityKeyIdentifier = keyid
-
-[req_ext]
-subjectAltName         = \$ENV::MYALT
 EOF
 
     touch "${OPENSSL_DIR}/CA/index"
@@ -194,7 +188,23 @@ ca_sign() {
     fi
 
     if [ ! -f "${MYCSR}" ]; then
-        openssl req -new -subj "${MYSUBJECT}/CN=${MYCN}" \
+        TEMPCONF="$(mktemp /tmp/req.XXXXXXXX)"
+        trap "rm -f ${TEMPCONF}" EXIT
+        cat > "${TEMPCONF}" <<EOF
+[req_distinguished_name]
+[req]
+default_md         = sha256
+distinguished_name = req_distinguished_name
+EOF
+        if [ -n "${MYALT}" ]; then
+            cat >> "${TEMPCONF}" <<EOF
+req_extensions     = req_ext
+[req_ext]
+subjectAltName     = ${MYALT}
+EOF
+        fi
+        openssl req -config "${TEMPCONF}" -new \
+            -subj "${MYSUBJECT}/CN=${MYCN}" \
             -key "${MYKEY}" -out "${MYCSR}"
     fi
 
