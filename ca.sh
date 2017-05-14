@@ -75,6 +75,7 @@ if [ "${1}" != "init" ]; then
 fi
 
 if [ -n "${MYCN}" ]; then
+    MYALT="DNS:${MYCN}${MYALT:+",${MYALT}"}"
     MYCRT="${OPENSSL_DIR}/certs/${MYCN}.crt"
     MYKEY="${OPENSSL_DIR}/private/${MYCN}.key"
     MYCSR="${OPENSSL_DIR}/requests/${MYCN}.csr"
@@ -191,18 +192,14 @@ ca_sign() {
         TEMPCONF="$(mktemp /tmp/req.XXXXXXXX)"
         trap "rm -f ${TEMPCONF}" EXIT
         cat > "${TEMPCONF}" <<EOF
-[req_distinguished_name]
 [req]
 default_md         = sha256
 distinguished_name = req_distinguished_name
-EOF
-        if [ -n "${MYALT}" ]; then
-            cat >> "${TEMPCONF}" <<EOF
 req_extensions     = req_ext
+[req_distinguished_name]
 [req_ext]
 subjectAltName     = ${MYALT}
 EOF
-        fi
         openssl req -config "${TEMPCONF}" -new \
             -subj "${MYSUBJECT}/CN=${MYCN}" \
             -key "${MYKEY}" -out "${MYCSR}"
