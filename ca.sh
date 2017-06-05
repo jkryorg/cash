@@ -1,7 +1,6 @@
 #!/bin/sh
 
 set -e
-umask 077
 
 MYCN=""
 MYALT=""
@@ -98,7 +97,6 @@ ca_init() {
 
     mkdir -p "${OPENSSL_DIR}/CA/signed" "${OPENSSL_DIR}/certs" \
         "${OPENSSL_DIR}/private" "${OPENSSL_DIR}/requests"
-    chmod 755 "${OPENSSL_DIR}" "${OPENSSL_DIR}/certs"
 
     cat > "${OPENSSL_DIR}/CA/config" <<EOF
 [ca]
@@ -174,13 +172,11 @@ EOF
         -subj "${MYSUBJECT}/CN=${MYCN}" -newkey rsa:4096 \
         -keyout "${OPENSSL_DIR}/CA/ca.key" \
         -out "${OPENSSL_DIR}/certs/ca.crt"
-    chmod 644 "${OPENSSL_DIR}/certs/ca.crt"
     ca_gencrl
 }
 
 ca_gencrl() {
     openssl ca -gencrl -out "${OPENSSL_DIR}/certs/ca.crl"
-    chmod 644 "${OPENSSL_DIR}/certs/ca.crl"
 }
 
 ca_sign() {
@@ -210,7 +206,6 @@ EOF
         exit 1
     else
         openssl ca -batch -in "${MYCSR}" -out "${MYCRT}"
-        chmod 644 "${MYCRT}"
     fi
 }
 
