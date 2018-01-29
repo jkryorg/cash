@@ -205,7 +205,7 @@ EOF
         echo "${MYCRT} already exists, aborting."
         exit 1
     else
-        openssl ca -batch -in "${MYCSR}" -out "${MYCRT}"
+        openssl ca -batch -notext -in "${MYCSR}" -out "${MYCRT}"
     fi
 }
 
