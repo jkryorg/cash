@@ -9,10 +9,10 @@ CAOPTS=""
 FORCE="no"
 OPENSSL_DIR="./pki"
 OPTSTRING="fhna:c:d:s:"
-USAGE="usage: `basename $0` [-${OPTSTRING}] command"
+USAGE="usage: $(basename "$0") [-${OPTSTRING}] command"
 
 usage() {
-    echo "${USAGE}"
+    echo "$USAGE"
     exit 1
 }
 
@@ -43,17 +43,17 @@ EOF
 while getopts ":${OPTSTRING}" OPT; do
     case "$OPT" in
         a) MYALT="${MYALT:+"${MYALT},"}DNS:${OPTARG}" ;;
-        c) MYCN="${OPTARG}" ;;
-        d) OPENSSL_DIR="${OPTARG}" ;;
+        c) MYCN="$OPTARG" ;;
+        d) OPENSSL_DIR="$OPTARG" ;;
         f) FORCE="yes" ;;
         h) usage_full ;;
         n) CAOPTS="-nodes" ;;
-        s) MYSUBJECT="${OPTARG}" ;;
+        s) MYSUBJECT="$OPTARG" ;;
         *) usage ;;
     esac
 done
 
-shift $((${OPTIND} - 1))
+shift $((OPTIND - 1))
 
 if [ $# -eq 0 ]; then
     usage
@@ -62,18 +62,18 @@ fi
 
 OPENSSL_CONF="${OPENSSL_DIR}/CA/config"
 
-if [ "${1}" != "init" ]; then
-    if [ ! -f "${OPENSSL_CONF}" ]; then
+if [ "$1" != "init" ]; then
+    if [ ! -f "$OPENSSL_CONF" ]; then
         echo "Missing ${OPENSSL_CONF}, run init first."
         exit 1
     fi
-    if [ "${MYCN}" = "ca" ]; then
+    if [ "$MYCN" = "ca" ]; then
         echo "\"${MYCN}\" not allowed as common name."
         exit 1
     fi
 fi
 
-if [ -n "${MYCN}" ]; then
+if [ -n "$MYCN" ]; then
     MYALT="DNS:${MYCN}${MYALT:+",${MYALT}"}"
     MYCRT="${OPENSSL_DIR}/certs/${MYCN}.crt"
     MYKEY="${OPENSSL_DIR}/private/${MYCN}.key"
@@ -83,7 +83,7 @@ fi
 export OPENSSL_CONF OPENSSL_DIR
 
 test_cn() {
-    if [ -z "${MYCN}" -o -z "${MYCRT}" -o -z "${MYKEY}" -o -z "${MYCSR}" ]; then
+    if [ -z "$MYCN" ] || [ -z "$MYCRT" ] || [ -z "$MYKEY" ] || [ -z "$MYCSR" ]; then
         echo "Common name is required."
         exit 1
     fi
@@ -168,7 +168,7 @@ EOF
     echo 01 > "${OPENSSL_DIR}/CA/serial"
     echo 01 > "${OPENSSL_DIR}/CA/crlnumber"
 
-    openssl req ${CAOPTS} -x509 -new -days 3650 \
+    openssl req $CAOPTS -x509 -new -days 3650 \
         -subj "${MYSUBJECT}/CN=${MYCN}" -newkey rsa:4096 \
         -keyout "${OPENSSL_DIR}/CA/ca.key" \
         -out "${OPENSSL_DIR}/certs/ca.crt"
@@ -180,14 +180,14 @@ ca_gencrl() {
 }
 
 ca_sign() {
-    if [ ! -f "${MYKEY}" ]; then
-        openssl genrsa -out "${MYKEY}" 4096
+    if [ ! -f "$MYKEY" ]; then
+        openssl genrsa -out "$MYKEY" 4096
     fi
 
-    if [ ! -f "${MYCSR}" ]; then
+    if [ ! -f "$MYCSR" ]; then
         TEMPCONF="$(mktemp /tmp/req.XXXXXXXX)"
         trap "rm -f ${TEMPCONF}" EXIT
-        cat > "${TEMPCONF}" <<EOF
+        cat > "$TEMPCONF" <<EOF
 [req]
 default_md         = sha256
 distinguished_name = req_distinguished_name
@@ -196,23 +196,23 @@ req_extensions     = req_ext
 [req_ext]
 subjectAltName     = ${MYALT}
 EOF
-        openssl req -config "${TEMPCONF}" -new \
+        openssl req -config "$TEMPCONF" -new \
             -subj "${MYSUBJECT}/CN=${MYCN}" \
-            -key "${MYKEY}" -out "${MYCSR}"
+            -key "$MYKEY" -out "$MYCSR"
     fi
 
-    if [ -f "${MYCRT}" -a "${FORCE}" != "yes" ]; then
+    if [ -f "$MYCRT" ] && [ "$FORCE" != "yes" ]; then
         echo "${MYCRT} already exists, aborting."
         exit 1
     else
-        openssl ca -batch -notext -in "${MYCSR}" -out "${MYCRT}"
+        openssl ca -batch -notext -in "$MYCSR" -out "$MYCRT"
     fi
 }
 
 ca_revoke() {
-    if [ -f "${MYCRT}" ]; then
+    if [ -f "$MYCRT" ]; then
         echo "Revoking ${MYCRT}"
-        openssl ca -batch -revoke "${MYCRT}"
+        openssl ca -batch -revoke "$MYCRT"
         ca_gencrl
     else
         echo "No such file: ${MYCRT}"
@@ -220,10 +220,10 @@ ca_revoke() {
 }
 
 ca_clean() {
-    for _file in "${MYKEY}" "${MYCSR}" "${MYCRT}"; do
-        if [ -e "${_file}" ]; then
+    for _file in "$MYKEY" "$MYCSR" "$MYCRT"; do
+        if [ -e "$_file" ]; then
             echo "Removing ${_file}"
-            rm -f "${_file}"
+            rm -f "$_file"
         fi
     done
 }
