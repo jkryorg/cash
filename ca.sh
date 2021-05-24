@@ -186,6 +186,7 @@ ca_sign() {
 
     if [ ! -f "$MYCSR" ]; then
         TEMPCONF="$(mktemp /tmp/req.XXXXXXXX)"
+        # shellcheck disable=SC2064
         trap "rm -f ${TEMPCONF}" EXIT
         cat > "$TEMPCONF" <<EOF
 [req]
