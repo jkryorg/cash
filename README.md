@@ -7,14 +7,14 @@ stabbing yourself in the eye.
 
 Initialize the CA configuration and certificates:
 
-    ca.sh -c "My CA" init
+    ca.sh init -c "My CA"
 
 Sign a certificate with alternative names:
 
-    ca.sh -c localhost.localdomain -a alt1.localdomain -a alt2.localdomain sign
+    ca.sh sign -c localhost.localdomain -a alt1.localdomain -a alt2.localdomain
 
 Revoke and remove certificate:
 
-    ca.sh -c localhost.localdomain clean
+    ca.sh clean -c localhost.localdomain
 
-See `ca.sh -h` for all available options and commands.
+See `ca.sh -h` for all available commands and options.
