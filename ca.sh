@@ -2,14 +2,20 @@
 
 set -e
 
-MYCN=""
-MYALT=""
-MYSUBJECT=""
-CAOPTS=""
-FORCE="no"
+MYCN=
+MYALT=
+MYSUBJECT=
+CAOPTS=
+COMMAND=
+FORCE=false
 OPENSSL_DIR="./pki"
-OPTSTRING="fhna:c:d:s:"
-USAGE="usage: $(basename "$0") [-${OPTSTRING}] command"
+OPTSTRING="a:c:d:s:fhn"
+USAGE="usage: $(basename "$0") command [-${OPTSTRING}]"
+
+die() {
+    echo "$*" 1>&2
+    exit 1
+}
 
 usage() {
     echo "$USAGE"
@@ -20,6 +26,14 @@ usage_full() {
     cat <<EOF
 ${USAGE}
 
+commands:
+    init            - initialize the CA configuration and keys
+    sign            - sign certificate
+    revoke          - revoke certificate
+    clean           - revoke certificate and remove files
+    gencrl          - update CRL file
+    list            - list the CA inventory
+
 options:
     -a altname      - add subjectAltName to certificate
     -d directory    - directory prefix (default: ${OPENSSL_DIR})
@@ -28,48 +42,50 @@ options:
     -f              - force re-signing if certificate exists
     -h              - show this help
     -n              - do not set password to CA private key
-
-commands:
-    init            - initialize the CA configuration and keys
-    sign            - sign certificate
-    revoke          - revoke certificate
-    clean           - revoke certificate and remove files
-    gencrl          - update CRL file
-    list            - list the CA inventory
 EOF
     exit 0
 }
+
+if [ $# -eq 0 ]; then
+    usage
+elif case "$1" in -*) false ;; esac; then
+    COMMAND="$1"
+    shift
+fi
 
 while getopts ":${OPTSTRING}" OPT; do
     case "$OPT" in
         a) MYALT="${MYALT:+"${MYALT},"}DNS:${OPTARG}" ;;
         c) MYCN="$OPTARG" ;;
         d) OPENSSL_DIR="$OPTARG" ;;
-        f) FORCE="yes" ;;
+        f) FORCE=true ;;
         h) usage_full ;;
         n) CAOPTS="-nodes" ;;
         s) MYSUBJECT="$OPTARG" ;;
-        *) usage ;;
+        *) die "Invalid option: -${OPTARG}" ;;
     esac
 done
 
 shift $((OPTIND - 1))
 
-if [ $# -eq 0 ]; then
-    usage
-    exit 1
+if [ -z "$COMMAND" ]; then
+    if [ $# -eq 1 ]; then
+        COMMAND="$1"
+    else
+        usage
+    fi
+elif [ $# -ne 0 ]; then
+    die "Can't give command twice."
 fi
 
 OPENSSL_CONF="${OPENSSL_DIR}/CA/config"
 
-if [ "$1" != "init" ]; then
+if [ "$COMMAND" != "init" ]; then
     if [ ! -f "$OPENSSL_CONF" ]; then
-        echo "Missing ${OPENSSL_CONF}, run init first."
-        exit 1
+        die "Missing ${OPENSSL_CONF}, run init first."
     fi
     if [ "$MYCN" = "ca" ]; then
-        echo "\"${MYCN}\" not allowed as common name."
-        exit 1
+        die "\"${MYCN}\" not allowed as common name."
     fi
 fi
 
@@ -84,15 +100,13 @@ export OPENSSL_CONF OPENSSL_DIR
 
 test_cn() {
     if [ -z "$MYCN" ] || [ -z "$MYCRT" ] || [ -z "$MYKEY" ] || [ -z "$MYCSR" ]; then
-        echo "Common name is required."
-        exit 1
+        die "Common name is required."
     fi
 }
 
 ca_init() {
     if [ -d "${OPENSSL_DIR}/CA" ]; then
-        echo "${OPENSSL_DIR}/CA already exists, aborting."
-        exit 1
+        die "${OPENSSL_DIR}/CA already exists, aborting."
     fi
 
     mkdir -p "${OPENSSL_DIR}/CA/signed" "${OPENSSL_DIR}/certs" \
@@ -202,9 +216,8 @@ EOF
             -key "$MYKEY" -out "$MYCSR"
     fi
 
-    if [ -f "$MYCRT" ] && [ "$FORCE" != "yes" ]; then
-        echo "${MYCRT} already exists, aborting."
-        exit 1
+    if [ -f "$MYCRT" ] && ! $FORCE; then
+        die "${MYCRT} already exists, aborting."
     else
         openssl ca -batch -notext -in "$MYCSR" -out "$MYCRT"
     fi
@@ -229,7 +242,7 @@ ca_clean() {
     done
 }
 
-case "$1" in
+case "$COMMAND" in
     init)
     test_cn
     ca_init
@@ -260,6 +273,6 @@ case "$1" in
     ;;
 
     *)
-    usage
+    die "Invalid command: ${COMMAND}"
     ;;
 esac
